@@ -401,6 +401,34 @@ class FileModifier:
                     "  const dispatch = useAppDispatch()\n",
                     ''
                 )
+                # Remove unused imports
+                content = content.replace(
+                    "import UpdateDialogPopup from '@renderer/components/Popups/UpdateDialogPopup'\n",
+                    ''
+                )
+                content = content.replace(
+                    "import { useAppDispatch } from '@renderer/store'\n",
+                    ''
+                )
+                content = content.replace(
+                    "import { setUpdateState } from '@renderer/store/runtime'\n",
+                    ''
+                )
+                content = content.replace(
+                    "import { UpgradeChannel } from '@shared/config/constant'\n",
+                    ''
+                )
+                content = re.sub(
+                    r"import \{ debounce \} from 'lodash'\n",
+                    '',
+                    content
+                )
+                # Remove Radio, Switch, Tooltip from antd imports (keep remaining)
+                content = re.sub(
+                    r"import \{([^}]+)\} from 'antd'",
+                    lambda m: "import {" + re.sub(r',?\s*\b(Radio|Switch|Tooltip)\b', '', m.group(1)) + "} from 'antd'",
+                    content
+                )
                 content += '\n// customized: update ui hidden'
                 if not self.dry_run:
                     with open(about_path, 'w', encoding='utf-8') as f:
@@ -483,6 +511,7 @@ class BuildManager:
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
+                errors='replace',
                 shell=sys.platform == 'win32'
             )
 
