@@ -1,0 +1,128 @@
+name: Custom Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Build platform"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - mac
+          - windows
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ${{ fromJSON(
+          github.event.inputs.platform == 'mac' && '["macos-latest"]' ||
+          github.event.inputs.platform == 'windows' && '["windows-latest"]' ||
+          '["macos-latest", "windows-latest"]'
+          ) }}
+      fail-fast: false
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
+      - name: Fix macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install python-setuptools
+          sudo -H pip install setuptools
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y rpm
+
+      - name: Patch config for platform
+        shell: bash
+        run: |
+          PLATFORM="${{ github.event.inputs.platform }}"
+          OS="${{ runner.os }}"
+          python3 - <<'EOF'
+          import json, os
+
+          with open("customize-config.json", "r") as f:
+              config = json.load(f)
+
+          platform_input = os.environ.get("PLATFORM_INPUT", "all")
+          runner_os = os.environ.get("RUNNER_OS", "")
+
+          if platform_input == "all":
+              if runner_os == "macOS":
+                  config["buildPlatforms"] = ["mac"]
+              elif runner_os == "Windows":
+                  config["buildPlatforms"] = ["windows"]
+          elif platform_input == "mac":
+              config["buildPlatforms"] = ["mac"]
+          elif platform_input == "windows":
+              config["buildPlatforms"] = ["windows"]
+
+          config["skipInstall"] = True   # pnpm install already done above
+          config["skipBuildCheck"] = True  # skip in CI to save time
+
+          with open("customize-config.json", "w") as f:
+              json.dump(config, f, indent=2)
+
+          print(f"buildPlatforms set to: {config['buildPlatforms']}")
+          EOF
+        env:
+          PLATFORM_INPUT: ${{ github.event.inputs.platform }}
+          RUNNER_OS: ${{ runner.os }}
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run customize and build
+        run: python3 customize-and-build.py
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          draft: true
+          allowUpdates: true
+          makeLatest: false
+          tag: custom-build
+          name: "Custom Build"
+          artifacts: "dist/*.exe,dist/*.zip,dist/*.dmg,dist/*.pkg,dist/latest*.yml,dist/*.blockmap"
+          token: ${{ secrets.GITHUB_TOKEN }}

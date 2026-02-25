@@ -1,0 +1,13 @@
+{
+  "appId": "com.yingzi.cherrystudio",
+  "productName": "YZ Cherry Studio",
+  "packageName": "YZCherryStudio",
+  "version": "1.7.19",
+  "hideDataSettings": true,
+  "applyBailianFix": true,
+  "hideUpdateUI": true,
+  "buildPlatforms": ["mac"],
+  "autoBuild": true,
+  "skipBuildCheck": false,
+  "skipInstall": false
+}

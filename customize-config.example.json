@@ -1,0 +1,18 @@
+{
+  "_comment": "应用配置",
+  "appId": "com.yourcompany.YourAppName",
+  "productName": "Your App Name",
+  "packageName": "YourAppName",
+  "version": "1.0.0",
+
+  "_comment_features": "功能开关",
+  "hideDataSettings": true,
+  "applyBailianFix": true,
+  "hideUpdateUI": true,
+
+  "_comment_build": "构建配置",
+  "buildPlatforms": ["mac", "windows"],
+  "autoBuild": true,
+  "skipBuildCheck": false,
+  "skipInstall": false
+}
