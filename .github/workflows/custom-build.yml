@@ -3,6 +3,10 @@ name: Custom Build
 on:
   workflow_dispatch:
     inputs:
+      tag:
+        description: "Release tag (e.g. custom-v1.7.19)"
+        required: true
+        default: "custom-v1.7.19"
       platform:
         description: "Build platform"
         required: true
@@ -116,13 +120,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
 
+      - name: List dist files
+        shell: bash
+        run: ls -la dist/ || echo "dist directory not found"
+
       - name: Release
         uses: ncipollo/release-action@v1
         with:
           draft: true
           allowUpdates: true
           makeLatest: false
-          tag: custom-build
-          name: "Custom Build"
+          tag: ${{ github.event.inputs.tag }}
+          name: "Custom Build ${{ github.event.inputs.tag }}"
           artifacts: "dist/*.exe,dist/*.zip,dist/*.dmg,dist/*.pkg,dist/latest*.yml,dist/*.blockmap"
           token: ${{ secrets.GITHUB_TOKEN }}
