@@ -482,7 +482,8 @@ class BuildManager:
                 command,
                 capture_output=True,
                 text=True,
-                encoding='utf-8'
+                encoding='utf-8',
+                shell=sys.platform == 'win32'
             )
 
             if result.returncode == 0:
@@ -490,7 +491,10 @@ class BuildManager:
                 return True
             else:
                 self.logger.error(f"{description} failed")
-                self.logger.error(f"Error output: {result.stderr}")
+                if result.stdout:
+                    self.logger.error(f"Output: {result.stdout[-3000:]}")
+                if result.stderr:
+                    self.logger.error(f"Error output: {result.stderr[-3000:]}")
                 return False
 
         except Exception as e:
