@@ -69,13 +69,21 @@ jobs:
           PLATFORM="${{ github.event.inputs.platform }}"
           OS="${{ runner.os }}"
           python3 - <<'EOF'
-          import json, os
+          import json, os, re
 
           with open("customize-config.json", "r") as f:
               config = json.load(f)
 
           platform_input = os.environ.get("PLATFORM_INPUT", "all")
           runner_os = os.environ.get("RUNNER_OS", "")
+          tag_input = os.environ.get("TAG_INPUT", "").strip()
+
+          version_match = re.search(r"(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$", tag_input)
+          if version_match:
+              config["version"] = version_match.group(1)
+              print(f"version set to: {config['version']}")
+          else:
+              print(f"no version parsed from tag: {tag_input}, keeping {config.get('version')}")
 
           if platform_input == "all":
               if runner_os == "macOS":
@@ -98,6 +106,7 @@ jobs:
         env:
           PLATFORM_INPUT: ${{ github.event.inputs.platform }}
           RUNNER_OS: ${{ runner.os }}
+          TAG_INPUT: ${{ github.event.inputs.tag }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
