@@ -36,14 +36,14 @@ jobs:
       - name: Check out Git repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
           node-version-file: '.node-version'
           cache: 'pnpm'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
