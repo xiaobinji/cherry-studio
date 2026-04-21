@@ -49,13 +49,20 @@ describe('trackTokenUsage', () => {
       provider: 'openai',
       model: 'gpt-4',
       input_tokens: 100,
-      output_tokens: 50
+      output_tokens: 50,
+      source: 'chat'
     })
   })
 
   it('should track AI SDK format usage', () => {
     mockGetProviderById.mockReturnValue({ id: 'anthropic', isSystem: true } as Provider)
-    const usage: LanguageModelUsage = { inputTokens: 200, outputTokens: 100, totalTokens: 300 }
+    const usage: LanguageModelUsage = {
+      inputTokens: 200,
+      outputTokens: 100,
+      totalTokens: 300,
+      inputTokenDetails: { noCacheTokens: undefined, cacheReadTokens: undefined, cacheWriteTokens: undefined },
+      outputTokenDetails: { textTokens: undefined, reasoningTokens: undefined }
+    }
 
     trackTokenUsage({ usage, model: createModel('anthropic', 'claude-3') })
 
@@ -63,7 +70,8 @@ describe('trackTokenUsage', () => {
       provider: 'anthropic',
       model: 'claude-3',
       input_tokens: 200,
-      output_tokens: 100
+      output_tokens: 100,
+      source: 'chat'
     })
   })
 

@@ -1,4 +1,4 @@
-import type { LanguageModelV2Source } from '@ai-sdk/provider'
+import type { LanguageModelV3Source } from '@ai-sdk/provider'
 import type { WebSearchResultBlock } from '@anthropic-ai/sdk/resources'
 import type OpenAI from '@cherrystudio/openai'
 import type { GenerateImagesConfig, GroundingMetadata, PersonGeneration } from '@google/genai'
@@ -26,6 +26,8 @@ export * from './notification'
 export * from './ocr'
 export * from './plugin'
 export * from './provider'
+export * from './serialize'
+export * from './skill'
 
 export type McpMode = 'disabled' | 'auto' | 'manual'
 
@@ -102,6 +104,7 @@ const ThinkModelTypes = [
   'gpt5_codex',
   'gpt5_1_codex',
   'gpt5_1_codex_max',
+  'gpt5_2_codex',
   'gpt5_2',
   'gpt5pro',
   'gpt52pro',
@@ -124,6 +127,7 @@ const ThinkModelTypes = [
   'perplexity',
   'deepseek_hybrid',
   'kimi_k2_5',
+  'claude',
   'claude46'
 ] as const
 
@@ -186,6 +190,8 @@ export type AssistantSettings = {
   reasoning_effort_cache?: ReasoningEffortOption
   qwenThinkMode?: boolean
   toolUseMode: 'function' | 'prompt'
+  maxToolCalls?: number
+  enableMaxToolCalls?: boolean
 }
 
 export type AssistantPreset = Omit<Assistant, 'model'> & {
@@ -544,6 +550,7 @@ export type LanguageVarious =
   | 'pt-PT'
   | 'ro-RO'
   | 'ru-RU'
+  | 'vi-VN'
 
 export type CodeStyleVarious = 'auto' | string
 
@@ -604,6 +611,25 @@ export type GenerateImageParams = {
   quality?: string
 }
 
+/**
+ * 图像编辑参数
+ * 用于基于输入图像和文本提示生成编辑后的图像
+ */
+export type EditImageParams = {
+  /** 模型 ID */
+  model: string
+  /** 编辑提示词 */
+  prompt: string
+  /** 需要编辑的输入图像（可以是 Buffer、Uint8Array 或 base64/URL 字符串） */
+  inputImages: (Buffer | Uint8Array | string)[]
+  /** 可选的 mask 图像用于 inpainting（指定需要编辑的区域） */
+  mask?: Buffer | Uint8Array | string
+  /** 输出图像尺寸 */
+  imageSize?: string
+  /** 中止信号 */
+  signal?: AbortSignal
+}
+
 export type GenerateImageResponse = {
   type: 'url' | 'base64'
   images: string[]
@@ -653,6 +679,7 @@ export const isAutoDetectionMethod = (method: string): method is AutoDetectionMe
 
 export type SidebarIcon =
   | 'assistants'
+  | 'agents'
   | 'store'
   | 'paintings'
   | 'translate'
@@ -678,6 +705,7 @@ export const WebSearchProviderIds = {
   exa: 'exa',
   'exa-mcp': 'exa-mcp',
   bocha: 'bocha',
+  querit: 'querit',
   'local-google': 'local-google',
   'local-bing': 'local-bing',
   'local-baidu': 'local-baidu'
@@ -700,6 +728,7 @@ export type WebSearchProvider = {
   basicAuthPassword?: string
   usingBrowser?: boolean
   topicId?: string
+  allowedTools?: string[]
   parentSpanId?: string
   modelName?: string
 }
@@ -715,7 +744,7 @@ export type WebSearchProviderResponse = {
   results: WebSearchProviderResult[]
 }
 
-export type AISDKWebSearchResult = Omit<Extract<LanguageModelV2Source, { sourceType: 'url' }>, 'sourceType'>
+export type AISDKWebSearchResult = Omit<Extract<LanguageModelV3Source, { sourceType: 'url' }>, 'sourceType'>
 
 export type WebSearchResults =
   | WebSearchProviderResponse
@@ -821,6 +850,7 @@ export const isBuiltinMCPServer = (server: MCPServer): server is BuiltinMCPServe
 }
 
 export const BuiltinMCPServerNames = {
+  flomo: '@cherry/flomo',
   mcpAutoInstall: '@cherry/mcp-auto-install',
   memory: '@cherry/memory',
   sequentialThinking: '@cherry/sequentialthinking',
@@ -927,6 +957,7 @@ export interface MCPToolResultContent {
 
 export interface MCPCallToolResponse {
   content: MCPToolResultContent[]
+  structuredContent?: unknown
   isError?: boolean
 }
 
@@ -1198,6 +1229,7 @@ type BaseParams = {
   requestOptions?: FetchChatCompletionRequestOptions
   onChunkReceived: (chunk: Chunk) => void
   topicId?: string // 添加 topicId 参数
+  allowedTools?: string[]
   uiMessages?: Message[]
 }
 

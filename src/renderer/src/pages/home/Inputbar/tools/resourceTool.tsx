@@ -7,7 +7,7 @@ import ResourceQuickPanelManager from './components/ResourceQuickPanelManager'
 /**
  * Resource Tool
  *
- * Allows users to search and select files, agents, and skills.
+ * Allows users to search and select files from accessible paths.
  * Uses @ trigger (same symbol as MentionModels, but different scope).
  * Only visible in Agent Session (TopicType.Session).
  */

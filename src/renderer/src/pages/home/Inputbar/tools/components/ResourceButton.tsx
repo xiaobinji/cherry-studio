@@ -24,8 +24,6 @@ const ResourceButton: FC<Props> = ({ quickPanel, quickPanelController, accessibl
       quickPanel,
       quickPanelController,
       accessiblePaths,
-      plugins: [], // Button only shows files, plugins are accessed via @ trigger
-      pluginsLoading: false,
       setText
     },
     'button'
