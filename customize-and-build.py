@@ -317,91 +317,64 @@ class FileModifier:
                 self.logger.info("AboutSettings.tsx already hidden - skipping")
             else:
                 # Remove CheckUpdateButton block (inside AboutHeader, guarded by !isPortable)
-                old_check_btn = """          {!isPortable && (
-            <CheckUpdateButton
-              onClick={onCheckUpdate}
-              loading={update.checking}
-              disabled={update.downloading || update.checking}>
-              {update.downloading
-                ? t('settings.about.downloading')
-                : update.available
-                  ? t('settings.about.checkUpdate.available')
-                  : t('settings.about.checkUpdate.label')}
-            </CheckUpdateButton>
-          )}"""
-                content = content.replace(old_check_btn, '')
+                content = re.sub(
+                    r"\n\s*\{!isPortable && \(\n\s*<CheckUpdateButton[\s\S]*?</CheckUpdateButton>\n\s*\)\}",
+                    '',
+                    content,
+                    count=1
+                )
 
                 # Remove auto-update + test-plan block (second !isPortable guard after AboutHeader)
-                old_update_block = """        {!isPortable && (
-          <>
-            <SettingDivider />
-            <SettingRow>
-              <SettingRowTitle>{t('settings.general.auto_check_update.title')}</SettingRowTitle>
-              <Switch value={autoCheckUpdate} onChange={(v) => setAutoCheckUpdate(v)} />
-            </SettingRow>
-            <SettingDivider />
-            <SettingRow>
-              <SettingRowTitle>{t('settings.general.test_plan.title')}</SettingRowTitle>
-              <Tooltip title={t('settings.general.test_plan.tooltip')} trigger={['hover', 'focus']}>
-                <Switch value={testPlan} onChange={(v) => handleSetTestPlan(v)} />
-              </Tooltip>
-            </SettingRow>
-            {testPlan && (
-              <>
-                <SettingDivider />
-                <SettingRow>
-                  <SettingRowTitle>{t('settings.general.test_plan.version_options')}</SettingRowTitle>
-                  <Radio.Group
-                    size="small"
-                    buttonStyle="solid"
-                    value={getTestChannel()}
-                    onChange={(e) => handleTestChannelChange(e.target.value)}>
-                    {getAvailableTestChannels().map((option) => (
-                      <Tooltip key={option.value} title={option.tooltip}>
-                        <Radio.Button value={option.value}>{option.label}</Radio.Button>
-                      </Tooltip>
-                    ))}
-                  </Radio.Group>
-                </SettingRow>
-              </>
-            )}
-          </>
-        )}"""
-                content = content.replace(old_update_block, '')
+                content = re.sub(
+                    r"(</AboutHeader>)\n\s*\{!isPortable && \([\s\S]*?\n\s*\)\}\n(\s*</SettingGroup>)",
+                    r"\1\n\2",
+                    content,
+                    count=1
+                )
 
-                # Remove unused state and functions
-                content = content.replace(
-                    "  const [isPortable, setIsPortable] = useState(false)\n",
-                    ''
+                # Remove state and handlers related to update UI.
+                content = re.sub(
+                    r"\n\s*const \[isPortable,\s*setIsPortable\] = useState\(false\)\n",
+                    '\n',
+                    content,
+                    count=1
                 )
-                content = content.replace(
-                    "  const { autoCheckUpdate, setAutoCheckUpdate, testPlan, setTestPlan, testChannel, setTestChannel } = useSettings()\n",
-                    "  const { autoCheckUpdate, setAutoCheckUpdate } = useSettings()\n"
+                content = re.sub(
+                    r"\n\s*const \{ autoCheckUpdate, setAutoCheckUpdate, testPlan, setTestPlan, testChannel, setTestChannel \} = useSettings\(\)\n",
+                    '\n  const { autoCheckUpdate, setAutoCheckUpdate } = useSettings()\n',
+                    content,
+                    count=1
                 )
-                content = content.replace(
-                    "\n  const onCheckUpdate = debounce(\n    async () => {\n      if (update.checking || update.downloading) {\n        return\n      }\n\n      if (update.downloaded) {\n        // Open update dialog directly in renderer\n        UpdateDialogPopup.show({ releaseInfo: update.info || null })\n        return\n      }\n\n      dispatch(setUpdateState({ checking: true }))\n\n      try {\n        await window.api.checkForUpdate()\n      } catch (error) {\n        window.toast.error(t('settings.about.updateError'))\n      }\n\n      dispatch(setUpdateState({ checking: false }))\n    },\n    2000,\n    { leading: true, trailing: false }\n  )\n",
-                    '\n'
+                content = re.sub(
+                    r"\n\s*const onCheckUpdate = debounce\([\s\S]*?\n\s*\)\n(?=\n\s*const onOpenWebsite)",
+                    '\n',
+                    content,
+                    count=1
                 )
-                content = content.replace(
-                    "\n  const currentChannelByVersion =\n    [\n      { pattern: `-${UpgradeChannel.BETA}.`, channel: UpgradeChannel.BETA },\n      { pattern: `-${UpgradeChannel.RC}.`, channel: UpgradeChannel.RC }\n    ].find(({ pattern }) => version.includes(pattern))?.channel || UpgradeChannel.LATEST\n\n  const handleTestChannelChange = async (value: UpgradeChannel) => {\n    if (testPlan && currentChannelByVersion !== UpgradeChannel.LATEST && value !== currentChannelByVersion) {\n      window.toast.warning(t('settings.general.test_plan.version_channel_not_match'))\n    }\n    setTestChannel(value)\n    // Clear update info when switching upgrade channel\n    dispatch(\n      setUpdateState({\n        available: false,\n        info: null,\n        downloaded: false,\n        checking: false,\n        downloading: false,\n        downloadProgress: 0\n      })\n    )\n  }\n\n  // Get available test version options based on current version\n  const getAvailableTestChannels = () => {\n    return [\n      {\n        tooltip: t('settings.general.test_plan.rc_version_tooltip'),\n        label: t('settings.general.test_plan.rc_version'),\n        value: UpgradeChannel.RC\n      },\n      {\n        tooltip: t('settings.general.test_plan.beta_version_tooltip'),\n        label: t('settings.general.test_plan.beta_version'),\n        value: UpgradeChannel.BETA\n      }\n    ]\n  }\n\n  const handleSetTestPlan = (value: boolean) => {\n    setTestPlan(value)\n    dispatch(\n      setUpdateState({\n        available: false,\n        info: null,\n        downloaded: false,\n        checking: false,\n        downloading: false,\n        downloadProgress: 0\n      })\n    )\n\n    if (value === true) {\n      setTestChannel(getTestChannel())\n    }\n  }\n\n  const getTestChannel = () => {\n    if (testChannel === UpgradeChannel.LATEST) {\n      return UpgradeChannel.RC\n    }\n    return testChannel\n  }\n",
-                    '\n'
+                content = re.sub(
+                    r"\n\s*const currentChannelByVersion =[\s\S]*?\n\s*const getTestChannel = \(\) => \{[\s\S]*?\n\s*\}\n(?=\n\s*useEffect)",
+                    '\n',
+                    content,
+                    count=1
                 )
-                # Fix useEffect: remove setIsPortable call
-                content = content.replace(
-                    "      setVersion(appInfo.version)\n      setIsPortable(appInfo.isPortable)\n",
-                    "      setVersion(appInfo.version)\n"
+
+                # Fix useEffect: remove portable flag sync
+                content = re.sub(
+                    r"(\s*setVersion\(appInfo\.version\)\n)\s*setIsPortable\(appInfo\.isPortable\)\n",
+                    r"\1",
+                    content,
+                    count=1
                 )
+
                 # Remove CheckUpdateButton styled component
-                content = content.replace(
-                    "\nconst CheckUpdateButton = styled(Button)``\n",
-                    '\n'
+                content = re.sub(
+                    r"\nconst CheckUpdateButton = styled\(Button\)``\n",
+                    '\n',
+                    content,
+                    count=1
                 )
-                # Remove unused dispatch
-                content = content.replace(
-                    "  const dispatch = useAppDispatch()\n",
-                    ''
-                )
-                # Remove unused imports
+
+                # Remove imports and hooks no longer needed.
                 content = content.replace(
                     "import UpdateDialogPopup from '@renderer/components/Popups/UpdateDialogPopup'\n",
                     ''
@@ -418,17 +391,25 @@ class FileModifier:
                     "import { UpgradeChannel } from '@shared/config/constant'\n",
                     ''
                 )
+                content = re.sub(r"import \{ debounce \} from 'lodash'\n", '', content, count=1)
                 content = re.sub(
-                    r"import \{ debounce \} from 'lodash'\n",
-                    '',
-                    content
+                    r"\n\s*const dispatch = useAppDispatch\(\)\n",
+                    '\n',
+                    content,
+                    count=1
                 )
-                # Remove Radio, Switch, Tooltip from antd imports (keep remaining)
+
+                # Remove Radio, Switch, Tooltip from antd imports (keep remaining symbols).
                 content = re.sub(
                     r"import \{([^}]+)\} from 'antd'",
-                    lambda m: "import {" + re.sub(r',?\s*\b(Radio|Switch|Tooltip)\b', '', m.group(1)) + "} from 'antd'",
-                    content
+                    lambda m: "import {"
+                    + re.sub(r',?\s*\b(Radio|Switch|Tooltip)\b', '', m.group(1)).strip()
+                    + "} from 'antd'",
+                    content,
+                    count=1
                 )
+                content = re.sub(r'import \{\s*,', 'import { ', content)
+                content = re.sub(r',\s*,', ',', content)
                 content += '\n// customized: update ui hidden'
                 if not self.dry_run:
                     with open(about_path, 'w', encoding='utf-8') as f:
@@ -532,7 +513,7 @@ class BuildManager:
 
     def install_dependencies(self) -> bool:
         """Install dependencies"""
-        return self.run_command(['pnpm', 'install'], "Installing dependencies")
+        return self.run_command(['pnpm', 'install', '--frozen-lockfile'], "Installing dependencies")
 
     def run_build_check(self) -> bool:
         """Run build check (lint + test + typecheck)"""
